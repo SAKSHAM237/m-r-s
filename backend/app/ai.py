@@ -147,9 +147,11 @@ async def generate_summary(
         )
         summary = response.choices[0].message.content.strip()
     except Exception as exc:
-        logger.error("OpenAI API call failed for report %s: [%s] %s", report_id, type(exc).__name__, exc)
+        err_type = type(exc).__name__
+        err_str = str(exc)
+        logger.error("OpenAI API call failed for report %s: [%s] %s", report_id, err_type, err_str)
         summary = (
-            "Error: We were unable to generate a simplified summary at this time. "
+            f"Error: API call failed ({err_type}: {err_str}). "
             "Please try again later or consult your healthcare provider directly."
         )
 
