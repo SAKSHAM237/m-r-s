@@ -130,10 +130,10 @@ async def process_report_task(
     try:
         # 1. OCR
         logger.info("OCR starting for report %s …", report_id)
-        # 60 second timeout for OCR to prevent infinite hangs
+        # 300 second timeout for OCR because Render free tier CPU is very slow
         raw_text = await asyncio.wait_for(
             asyncio.to_thread(extract_text_from_file, file_path, content_type),
-            timeout=60.0
+            timeout=300.0
         )
         logger.info("OCR done for report %s (%d chars)", report_id, len(raw_text))
 
@@ -160,14 +160,21 @@ async def process_report_task(
             language=language,
         )
 
-    except Exception:
+    except Exception as exc:
         logger.exception("Failed to process report %s", report_id)
+        
+        # Determine error string
+        if isinstance(exc, asyncio.TimeoutError):
+            err_msg = "Error: OCR process timed out. The file might be too large or the free server is overloaded."
+        else:
+            err_msg = f"Error: {type(exc).__name__} - {str(exc)}. Please try uploading again."
+            
         # Store an error message so the frontend knows something went wrong
         async with AsyncSessionLocal() as db:
             await crud.update_report_summary(
                 db=db,
                 report_id=report_id,
-                summary="Error: could not process this report. Please try uploading again.",
+                summary=err_msg,
                 test_values=None,
                 has_abnormal=False,
             )

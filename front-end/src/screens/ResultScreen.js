@@ -15,7 +15,7 @@ export default function ResultScreen({ route, navigation }) {
 
   useEffect(() => {
     let attempt = 0;
-    const maxAttempts = 30;
+    const maxAttempts = 120;
     let timeoutId;
 
     const pollReport = async () => {
