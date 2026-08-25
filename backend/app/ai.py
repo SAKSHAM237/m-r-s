@@ -20,19 +20,28 @@ from .database import AsyncSessionLocal
 logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------
-# OpenAI client  (lazy – so the module can be imported without a key)
+# OpenAI / Groq client  (lazy – so the module can be imported without a key)
 # ------------------------------------------------------------------
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-_client = None
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 
+_client = None
 
 def _get_client() -> openai.AsyncOpenAI:
     global _client
     if _client is None:
-        _client = openai.AsyncOpenAI(
-            api_key=OPENAI_API_KEY,
-            timeout=60.0,  # 60 second timeout to prevent indefinite hanging
-        )
+        # If GROQ_API_KEY is set, use Groq's free OpenAI-compatible API
+        if GROQ_API_KEY:
+            _client = openai.AsyncOpenAI(
+                api_key=GROQ_API_KEY,
+                base_url="https://api.groq.com/openai/v1",
+                timeout=60.0,
+            )
+        else:
+            _client = openai.AsyncOpenAI(
+                api_key=OPENAI_API_KEY,
+                timeout=60.0,  # 60 second timeout to prevent indefinite hanging
+            )
     return _client
 
 # ------------------------------------------------------------------
@@ -124,10 +133,11 @@ async def generate_summary(
         f"Please simplify this report in {lang_label}."
     )
 
-    # Call OpenAI Chat Completions API
+    # Call OpenAI or Groq Chat Completions API
     try:
+        model_name = "llama-3.1-8b-instant" if GROQ_API_KEY else "gpt-4o-mini"
         response = await _get_client().chat.completions.create(
-            model="gpt-4o-mini",
+            model=model_name,
             temperature=0.2,
             max_tokens=2048,
             messages=[
